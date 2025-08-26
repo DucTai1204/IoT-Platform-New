@@ -1,0 +1,10 @@
+app/secrets/public.pem
+
+.env
+.env.prod
+__pycache__/
+*.py[cod]
+venv
+
+
+node_modules

@@ -1,0 +1,54 @@
+# rules.json
+# Điều kiện (Condition) | Hành động (Action)                 |
+# --------------------- | ---------------------------------- |
+# |Nếu nhiệt độ > 30°C  | Bật relay-1 (quạt, điều hòa, v.v.) |
+# |Nếu nhiệt độ ≤ 24°C  | Tắt relay-1                        |
+# |Nếu độ ẩm < 40%      | Bật máy tạo ẩm (humidifier-1)      |
+# |Nếu độ ẩm ≥ 60%      | Tắt máy tạo ẩm                     |
+
+[
+  {
+    "condition": {
+      "field": "temperature",
+      "operator": ">",
+      "value": 30
+    },
+    "action": {
+      "device_id": "relay-1",
+      "command": "turn_on"
+    }
+  },
+  {
+    "condition": {
+      "field": "temperature",
+      "operator": "<=",
+      "value": 24
+    },
+    "action": {
+      "device_id": "relay-1",
+      "command": "turn_off"
+    }
+  },
+  {
+    "condition": {
+      "field": "humidity",
+      "operator": "<",
+      "value": 40
+    },
+    "action": {
+      "device_id": "humidifier-1",
+      "command": "turn_on"
+    }
+  },
+  {
+    "condition": {
+      "field": "humidity",
+      "operator": ">=",
+      "value": 60
+    },
+    "action": {
+      "device_id": "humidifier-1",
+      "command": "turn_off"
+    }
+  }
+]
