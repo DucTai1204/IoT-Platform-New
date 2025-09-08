@@ -119,10 +119,36 @@ def get_room(
     if not room:
         raise HTTPException(status_code=404, detail="Phòng không tồn tại")
     return room
-@router.get("/rooms/{ma_phong}/fields")
-def get_room_devices_and_fields(ma_phong: str, db: Session = Depends(get_db)):
-    # Lấy phòng theo mã
-    room = db.query(Room).filter(Room.ma_phong == ma_phong).first()
+# @router.get("/rooms/{ma_phong}/fields")
+# def get_room_devices_and_fields(ma_phong: str, db: Session = Depends(get_db)):
+#     # Lấy phòng theo mã
+#     room = db.query(Room).filter(Room.ma_phong == ma_phong).first()
+#     if not room:
+#         raise HTTPException(status_code=404, detail="Phòng không tồn tại")
+
+#     # Lấy tất cả thiết bị trong phòng
+#     devices = db.query(Device).filter(Device.phong_id == room.id).all()
+#     if not devices:
+#         return []
+
+#     result = []
+#     for device in devices:
+#         # Lấy field của từng thiết bị
+#         fields = db.query(DeviceField).filter(DeviceField.thiet_bi_id == device.id).all()
+#         result.append({
+#             "ma_thiet_bi": device.ma_thiet_bi,
+#             "ten_thiet_bi": device.ten_thiet_bi,
+#             "fields": [
+#                 {"khoa": f.khoa, "don_vi": f.don_vi, "mo_ta": f.mo_ta}
+#                 for f in fields
+#             ]
+#         })
+
+#     return result
+@router.get("/rooms/{id}/fields")
+def get_room_devices_and_fields(id: int, db: Session = Depends(get_db)):
+    # Lấy phòng theo id
+    room = db.query(Room).filter(Room.id == id).first()
     if not room:
         raise HTTPException(status_code=404, detail="Phòng không tồn tại")
 
@@ -145,6 +171,7 @@ def get_room_devices_and_fields(ma_phong: str, db: Session = Depends(get_db)):
         })
 
     return result
+
 @router.get("/internal/rooms/{ma_phong}/fields", tags=["Internal"])
 def get_room_devices_and_fields_internal(ma_phong: str, db: Session = Depends(get_db)):
     # Không có get_current_user

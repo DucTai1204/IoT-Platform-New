@@ -11,7 +11,7 @@ from auth.security import get_current_user
 from auth.models import NguoiDung
 from rooms.models import Room
 from .models import Device, DeviceField, Telemetry
-from .schemas import DeviceCreate, DeviceOut, FieldCreate, TelemetryIn, TelemetryOut
+from .schemas import DeviceCreate, DeviceOut, FieldCreate, TelemetryIn, TelemetryOut,DeviceStatusUpdate
 
 router = APIRouter(tags=["Thiết bị"])
 
@@ -96,6 +96,8 @@ def get_device_detail(
             .first()
         )
         telemetry_data[field.khoa] = {
+            "id": field.id,
+            "khoa":field.khoa,
             "don_vi": field.don_vi,
             "mo_ta": field.mo_ta,
             "latest_value": latest_data.gia_tri if latest_data else None,
@@ -111,7 +113,6 @@ def get_device_detail(
         "trang_thai": dev.trang_thai,
         "fields": telemetry_data
     }
-
 
 # 3) Đăng ký field cho thiết bị
 @router.post("/{device_id:int}/dangki-truong", summary="Nhập các trường cho thiết bị theo id", status_code=status.HTTP_201_CREATED)
@@ -198,3 +199,77 @@ def publish_telemetry(
     db.commit()
     db.refresh(rec)
     return rec
+# 5) Sửa field của thiết bị
+@router.put("/fields/{field_id}", summary="Sửa thông tin field của thiết bị")
+def update_field(
+    field_id: int,
+    body: FieldCreate,
+    db: Session = Depends(get_db),
+    current_user: NguoiDung = Depends(get_current_user)
+):
+    field = (
+        db.query(DeviceField)
+        .join(Device, Device.id == DeviceField.thiet_bi_id)
+        .join(Room, Room.id == Device.phong_id)
+        .filter(DeviceField.id == field_id, Room.nguoi_quan_ly_id == current_user.id)
+        .first()
+    )
+    if not field:
+        raise HTTPException(status_code=404, detail="Field không tồn tại hoặc không thuộc thiết bị của bạn")
+
+    # Kiểm tra trùng tên field trong cùng 1 device
+    dup = db.query(DeviceField).filter(
+        DeviceField.thiet_bi_id == field.thiet_bi_id,
+        DeviceField.khoa == body.khoa,
+        DeviceField.id != field_id
+    ).first()
+    if dup:
+        raise HTTPException(status_code=400, detail=f"Field '{body.khoa}' đã tồn tại trên thiết bị này")
+
+    field.khoa = body.khoa
+    field.don_vi = body.don_vi
+    field.mo_ta = body.mo_ta
+    db.commit()
+    db.refresh(field)
+    return {"message": "Cập nhật thành công", "field": {
+        "id": field.id,
+        "khoa": field.khoa,
+        "don_vi": field.don_vi,
+        "mo_ta": field.mo_ta
+    }}
+# 6) Xóa field của thiết bị
+@router.delete("/fields/{field_id}", summary="Xóa field của thiết bị")
+def delete_field(
+    field_id: int,
+    db: Session = Depends(get_db),
+    current_user: NguoiDung = Depends(get_current_user)
+):
+    field = (
+        db.query(DeviceField)
+        .join(Device, Device.id == DeviceField.thiet_bi_id)
+        .join(Room, Room.id == Device.phong_id)
+        .filter(DeviceField.id == field_id, Room.nguoi_quan_ly_id == current_user.id)
+        .first()
+    )
+    if not field:
+        raise HTTPException(status_code=404, detail="Field không tồn tại hoặc không thuộc thiết bị của bạn")
+
+    db.delete(field)
+    db.commit()
+    return {"message": "Xóa field thành công", "field_id": field_id}
+
+
+@router.put("/{device_id:int}/trangthai", summary="Cập nhật trạng thái thiết bị")
+def update_device_status(device_id: int, body: DeviceStatusUpdate, db: Session = Depends(get_db), current_user: NguoiDung = Depends(get_current_user)):
+    dev = (
+        db.query(Device)
+        .join(Room, Room.id == Device.phong_id)
+        .filter(Device.id == device_id, Room.nguoi_quan_ly_id == current_user.id)
+        .first()
+    )
+    if not dev:
+        raise HTTPException(status_code=404, detail="Thiết bị không tồn tại")
+    dev.trang_thai = body.trang_thai
+    db.commit()
+    db.refresh(dev)
+    return {"device_id": dev.ma_thiet_bi, "trang_thai": dev.trang_thai}

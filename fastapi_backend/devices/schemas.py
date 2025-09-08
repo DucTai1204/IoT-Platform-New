@@ -1,8 +1,20 @@
-#devices/schemas.py
+# devices/schemas.py
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from enum import Enum
 
+# ----------------------
+# 0) Device status update
+class TrangThaiEnum(str, Enum):
+    online = "online"
+    offline = "offline"
+    error = "error"
+
+class DeviceStatusUpdate(BaseModel):
+    trang_thai: TrangThaiEnum
+
+# ----------------------
 # 1) Tạo thiết bị
 class DeviceCreate(BaseModel):
     ma_thiet_bi: Optional[str] = None
@@ -24,6 +36,7 @@ class DeviceOut(BaseModel):
         from_attributes = True
 
 
+# ----------------------
 # 2) Đăng ký field cho thiết bị
 class FieldCreate(BaseModel):
     khoa: Optional[str]
@@ -42,6 +55,7 @@ class FieldOut(BaseModel):
         from_attributes = True
 
 
+# ----------------------
 # 3) Publish telemetry
 class TelemetryIn(BaseModel):
     khoa: str

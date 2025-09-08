@@ -1,3 +1,5 @@
+#main.py
+
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -62,5 +64,5 @@ def api_health_check():
 if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
-    reload_flag = os.getenv("RELOAD", "true").lower() == "true"
+    reload_flag = os.getenv("RELOAD", "false").lower() == "true"
     uvicorn.run("main:app", host=host, port=port, reload=reload_flag)

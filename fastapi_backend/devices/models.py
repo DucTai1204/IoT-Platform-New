@@ -1,18 +1,26 @@
-#devices/models
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, Text
-from database import Base
 from sqlalchemy.orm import relationship
+from database import Base
+from enum import Enum as PyEnum
+
+# Enum SQLAlchemy & Pydantic
+class TrangThaiEnum(str, PyEnum):
+    online = "online"
+    offline = "offline"
+    error = "error"
 
 class Device(Base):
     __tablename__ = "thiet_bi"
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     ma_thiet_bi = Column(String(100), nullable=False, unique=True)
     ten_thiet_bi = Column(String(100))
     loai_thiet_bi = Column(String(100))
-    phong_id = Column(Integer, ForeignKey("phong.id"))  # phòng (Room)
-    trang_thai = Column(Enum("online", "offline", "error", name="trang_thai"), default="offline")
+    phong_id = Column(Integer, ForeignKey("phong.id"))
+    trang_thai = Column(Enum(TrangThaiEnum, name="trang_thai"), default=TrangThaiEnum.offline, nullable=False)
     ngay_dang_ky = Column(DateTime, default=datetime.utcnow)
+    last_seen = Column(DateTime, default=None, nullable=True)  # thời gian update cuối
 
     room = relationship("Room", back_populates="devices")
 
