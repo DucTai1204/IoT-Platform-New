@@ -1,7 +1,6 @@
 version: '3'
 
 services:
-
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
@@ -22,11 +21,12 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      # Quan trọng: quảng bá cho cả máy host và container khác
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+
   mongodb:
     image: mongo
     container_name: mongodb
@@ -46,6 +46,13 @@ services:
       MYSQL_PASSWORD: iot123
     restart: always
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: always
+
   fastapi-backend:
     build:
       context: ./fastapi_backend
@@ -55,7 +62,11 @@ services:
     depends_on:
       - mongodb
       - mysql
+      - redis
     restart: unless-stopped
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   mqtt-to-kafka:
@@ -85,17 +96,18 @@ services:
       - ./mqtt_server/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
 
   grafana:
-    image: grafana/grafana:10.0.3
+    image: grafana/grafana:9.5.1              # <-- LÙI VỀ PHIÊN BẢN 9
     container_name: grafana
+    restart: always
     ports:
       - "3001:3000"
-    volumes:
-      - grafana-storage:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_INSTALL_PLUGINS=mongodb-community-datasource # <-- GIỮ NGUYÊN TÊN PLUGIN NÀY
+    volumes:
+      - grafana-storage:/var/lib/grafana
     depends_on:
-      - mysql
       - mongodb
 
 volumes:

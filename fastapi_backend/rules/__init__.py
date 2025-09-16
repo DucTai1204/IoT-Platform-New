@@ -1,2 +1,2 @@
-# đảm bảo để trống hoặc chỉ có:
+#rules/__init__.py
 from . import models, schemas

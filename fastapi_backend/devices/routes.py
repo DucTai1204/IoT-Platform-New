@@ -103,7 +103,6 @@ def get_device_detail(
             "latest_value": latest_data.gia_tri if latest_data else None,
             "last_update": latest_data.thoi_gian if latest_data else None
         }
-
     return {
         "id": dev.id,
         "ma_thiet_bi": dev.ma_thiet_bi,
