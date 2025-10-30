@@ -4,11 +4,9 @@ from dotenv import load_dotenv
 
 # Đảm bảo các biến môi trường được nạp
 load_dotenv()
-
-# Tạo một client duy nhất để kết nối đến Redis
-# decode_responses=True giúp kết quả trả về từ Redis là string, không phải bytes
 redis_client = redis.Redis(
-    host=os.getenv("REDIS_HOST", "localhost"),
+    host=os.getenv("REDIS_HOST", "redis"),
+    # host=os.getenv("REDIS_HOST", "localhost"),
     port=int(os.getenv("REDIS_PORT", 6379)),
     db=0,
     decode_responses=True 

@@ -31,10 +31,18 @@ def run_bot():
     logger.info("▶️ Telegram bot thread started")
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    logger.info("🚀 Telegram bot service started")
-    app.run_polling()
+
+    async def main():
+        await app.initialize()
+        await app.start()
+        logger.info("🚀 Telegram bot service started")
+        await app.updater.start_polling()
+        await asyncio.Event().wait()  # giữ loop chạy vô hạn
+
+    loop.run_until_complete(main())
 
 def start_bot_in_thread():
     t = threading.Thread(target=run_bot, daemon=True)

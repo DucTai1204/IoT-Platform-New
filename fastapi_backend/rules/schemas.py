@@ -1,7 +1,7 @@
-#rule/schemas.py
+# rules/schemas.py (UPDATED)
 from pydantic import BaseModel
 from typing import Optional, List, Dict
-from datetime import datetime
+from datetime import datetime, time, date
 
 class RuleActionBase(BaseModel):
     device_id: str
@@ -59,6 +59,51 @@ class Command(CommandBase):
     sent_at: Optional[datetime]
     acked_at: Optional[datetime]
     error_message: Optional[str]
+
+    class Config:
+        orm_mode = True
+
+# ===============================================
+# === SCHEMAS MỚI CHO LỊCH TRÌNH ĐỊNH KỲ (CẬP NHẬT) ===
+# ===============================================
+
+class HanhDongDinhKyBase(BaseModel):
+    device_id: str
+    command: str
+    payload: Optional[Dict] = {}
+    thu_tu: Optional[int] = 1
+
+class HanhDongDinhKyCreate(HanhDongDinhKyBase):
+    pass
+
+class HanhDongDinhKy(HanhDongDinhKyBase):
+    id: int
+    lich_trinh_id: int
+
+    class Config:
+        orm_mode = True
+
+class LichTrinhThoiGianBase(BaseModel):
+    ten_lich: str
+    phong_id: int
+    thoi_gian_chay: time
+    
+    # Các trường mới thay thế cac_ngay_chay
+    ngay_bat_dau: date # Kiểu date
+    tan_suat: Optional[str] = "ONCE" # ONCE, DAILY, WEEKLY, MONTHLY
+    ngay_ket_thuc: Optional[date] = None
+    ngay_lap_lai_tuan: Optional[str] = None # MON,TUE,WED
+    
+    trang_thai: Optional[str] = "active"
+
+class LichTrinhThoiGianCreate(LichTrinhThoiGianBase):
+    hanh_dongs: List[HanhDongDinhKyCreate]
+
+class LichTrinhThoiGian(LichTrinhThoiGianBase):
+    id: int
+    nguoi_tao_id: Optional[int]
+    ngay_tao: datetime
+    hanh_dongs: List[HanhDongDinhKy] = []
 
     class Config:
         orm_mode = True

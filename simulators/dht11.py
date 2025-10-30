@@ -4,7 +4,8 @@ import random
 import paho.mqtt.client as mqtt
 
 # --- Cấu hình ---
-BROKER = "127.0.0.1"
+BROKER = "192.168.69.159"
+# BROKER = "127.0.0.1"
 PORT  = 1883
 ROOM  = "13edc6c57df2421fbbc4c5f8265ccb9f"
 DEVICE_ID = "b6c203a59ed04a40b2f4741e17e3a3ea"

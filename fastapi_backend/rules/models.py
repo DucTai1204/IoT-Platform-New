@@ -1,7 +1,7 @@
-#rules/models.py
-from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, JSON
+# rules/models.py (UPDATED)
+from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, JSON, Time, Date
 from sqlalchemy.orm import relationship, declarative_base
-from datetime import datetime
+from datetime import datetime, time, date
 
 Base = declarative_base()
 
@@ -49,3 +49,39 @@ class Command(Base):
     sent_at = Column(DateTime, nullable=True)
     acked_at = Column(DateTime, nullable=True)
     error_message = Column(String(255), nullable=True)
+
+# ===============================================
+# === BẢNG MỚI CHO LỊCH TRÌNH ĐỊNH KỲ (CẬP NHẬT) ===
+# ===============================================
+
+class LichTrinhThoiGian(Base):
+    __tablename__ = "lich_trinh_thoi_gian"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ten_lich = Column(String(255), nullable=False)
+    phong_id = Column(Integer, nullable=False)
+    thoi_gian_chay = Column(Time, nullable=False)
+    
+    # Cột mới thay thế cac_ngay_chay
+    ngay_bat_dau = Column(Date, nullable=False) # Lịch trình sẽ bắt đầu từ ngày này
+    tan_suat = Column(Enum("ONCE", "DAILY", "WEEKLY", "MONTHLY"), default="ONCE") 
+    ngay_ket_thuc = Column(Date, nullable=True) # Ngày kết thúc (Nếu cần)
+    ngay_lap_lai_tuan = Column(String(50), default=None) # MON,TUE,WED (chỉ dùng nếu tan_suat=WEEKLY)
+    
+    trang_thai = Column(Enum("active", "disabled"), default="active")
+    nguoi_tao_id = Column(Integer)
+    ngay_tao = Column(DateTime, default=datetime.utcnow)
+
+    hanh_dongs = relationship("HanhDongDinhKy", back_populates="lich_trinh", cascade="all, delete-orphan")
+
+class HanhDongDinhKy(Base):
+    __tablename__ = "hanh_dong_dinh_ky"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lich_trinh_id = Column(Integer, ForeignKey("lich_trinh_thoi_gian.id", ondelete="CASCADE"))
+    device_id = Column(String(100), nullable=False)
+    command = Column(String(100), nullable=False)
+    payload = Column(JSON, default={})
+    thu_tu = Column(Integer, default=1)
+
+    lich_trinh = relationship("LichTrinhThoiGian", back_populates="hanh_dongs")

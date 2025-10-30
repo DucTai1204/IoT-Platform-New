@@ -67,7 +67,7 @@ class TelemetryOut(BaseModel):
     id: int
     thiet_bi_id: int
     khoa: str
-    gia_tri: str
+    gia_tri: Optional[float]
     thoi_gian: datetime
 
     class Config:

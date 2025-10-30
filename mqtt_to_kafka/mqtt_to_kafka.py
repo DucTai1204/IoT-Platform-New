@@ -9,14 +9,17 @@ from kafka import KafkaProducer
 from functools import lru_cache
 
 # ===== CONFIG =====
-MQTT_BROKER = os.getenv("MQTT_BROKER", "127.0.0.1")
+# Thay đổi giá trị mặc định để phù hợp với tên service trong Docker Compose
+MQTT_BROKER = os.getenv("MQTT_BROKER", "mqtt")
+#MQTT_BROKER = os.getenv("MQTT_BROKER", "127.0.0.1")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 MQTT_TOPIC = "iot/+/data"
 
-KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:29092")
+# KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "iot-events")
 
-ROOM_API_BASE = os.getenv("ROOM_API_BASE", "http://127.0.0.1:8000")
+ROOM_API_BASE = os.getenv("ROOM_API_BASE", "127.0.0.1:8000")
 print(ROOM_API_BASE)
 
 # ===== Kafka Producer =====
@@ -32,20 +35,25 @@ producer = KafkaProducer(
 @lru_cache(maxsize=100)
 def get_valid_devices_and_fields(ma_phong):
     try:
+        # Thêm http:// hoặc https:// vào URL để requests hoạt động đúng
         url = f"{ROOM_API_BASE}/rooms/internal/rooms/{ma_phong}/fields"
+        print(f"🔍 Fetching from API: {url}")
         r = requests.get(url, timeout=3)
         if r.status_code == 200:
             data = r.json()
             return {dev["ma_thiet_bi"]: {f["khoa"] for f in dev["fields"]} for dev in data}
         else:
-            print(f"⚠️ Room {ma_phong} not found via API")
+            print(f"⚠️ Room {ma_phong} not found via API, status code: {r.status_code}")
             return {}
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ Connection error to FastAPI backend: {e}")
+        return {}
     except Exception as e:
         print(f"❌ Error fetching devices for {ma_phong}: {e}")
         return {}
 
 # ===== MQTT Callbacks =====
-def on_connect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, rc,properties=None):
     if rc == 0:
         print(f"✅ MQTT connected with result code {rc}")
         client.subscribe(MQTT_TOPIC)
@@ -55,52 +63,35 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):
     try:
+        print(f"📥 Received message on topic: {msg.topic}")
         payload = json.loads(msg.payload.decode())
+
         parts = msg.topic.split("/")
         if len(parts) < 3:
             print("⚠️ Invalid topic format")
             return
 
         ma_phong = parts[1]
+        print(f"Processing data for room: {ma_phong}")
 
-        # Lấy mapping thiết bị -> field hợp lệ
-        valid_map = get_valid_devices_and_fields(ma_phong)
-        if not valid_map:
-            print(f"⛔ No valid devices for room {ma_phong}")
-            return
+        # Tạo Kafka topic động theo maphong
+        kafka_topic_for_room = f"iot.{ma_phong}.data"
 
-        ma_thiet_bi = payload.get("ma_thiet_bi")
-        if not ma_thiet_bi:
-            print("⚠️ Missing 'ma_thiet_bi' in payload")
-            return
-
-        if ma_thiet_bi not in valid_map:
-            print(f"⛔ Device '{ma_thiet_bi}' not in room {ma_phong}")
-            return
-
-        # Kiểm tra field trong payload (bỏ qua ma_thiet_bi và timestamp)
-        for key in payload.keys():
-            if key in ("ma_thiet_bi", "timestamp"):
-                continue
-            if key not in valid_map[ma_thiet_bi]:
-                print(f"⛔ Field '{key}' not allowed for device {ma_thiet_bi} in room {ma_phong}")
-                return
-
-        # Gửi Kafka nếu hợp lệ
-        future = producer.send(KAFKA_TOPIC, value={
-            "ma_phong": ma_phong,
-            "data": payload
-        })
+        # Gửi payload vào Kafka topic riêng cho room
+        future = producer.send(kafka_topic_for_room, value=payload)
         result = future.get(timeout=5)
         producer.flush()
-        print(f"📤 Sent to Kafka topic '{KAFKA_TOPIC}' at offset {result.offset}")
+        print(f"📤 Sent to Kafka topic '{kafka_topic_for_room}' at offset {result.offset}")
 
+    except json.JSONDecodeError:
+        print("❌ Error: Invalid JSON payload")
     except Exception as e:
         print(f"❌ Error processing message: {e}")
 
 # ===== MQTT Client =====
 print(f"🔌 MQTT broker: {MQTT_BROKER}:{MQTT_PORT}")
-client = mqtt.Client(protocol=mqtt.MQTTv311)
+# client = mqtt.Client(protocol=mqtt.MQTTv311)
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, protocol=mqtt.MQTTv311)
 client.on_connect = on_connect
 client.on_message = on_message
 client.connect(MQTT_BROKER, MQTT_PORT, 60)

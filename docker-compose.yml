@@ -1,4 +1,4 @@
-version: '3'
+version: '3.8'
 
 services:
   zookeeper:
@@ -9,6 +9,7 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    restart: unless-stopped
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -25,17 +26,27 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
 
   mongodb:
-    image: mongo
+    image: mongo:7.0
     container_name: mongodb
     ports:
       - "27017:27017"
-    restart: always
+    restart: unless-stopped
+    volumes:
+      - mongodb-data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
 
   mysql:
-    image: mysql:5.7
+    image: mysql:8.0
     container_name: mysql
     ports:
       - "3312:3306"
@@ -44,14 +55,29 @@ services:
       MYSQL_DATABASE: iot_data
       MYSQL_USER: iot
       MYSQL_PASSWORD: iot123
-    restart: always
+    restart: unless-stopped
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./data.sql:/docker-entrypoint-initdb.d/data.sql
 
   redis:
     image: redis:7-alpine
     container_name: redis
     ports:
       - "6379:6379"
-    restart: always
+    restart: unless-stopped
+
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mqtt_server/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-logs:/mosquitto/log
 
   fastapi-backend:
     build:
@@ -67,13 +93,30 @@ services:
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   mqtt-to-kafka:
     build:
       context: ./mqtt_to_kafka
     container_name: mqtt_to_kafka
-    restart: unless-stopped
+    env_file:
+      - ./mqtt_to_kafka/.env
+    depends_on:
+      - kafka
+      - mqtt
+      - fastapi-backend
+    # QUAN TRỌNG: restart on-failure sẽ tự động retry khi crash
+    # Kết hợp với retry logic trong code Python
+    restart: on-failure:10
+    environment:
+      KAFKA_BROKER: kafka:29092
+      MQTT_BROKER: mqtt
+      MQTT_PORT: 1883
+      ROOM_API_BASE: http://fastapi_backend:8000
 
   spark-processor:
     build:
@@ -84,31 +127,38 @@ services:
       - mongodb
       - mysql
     restart: unless-stopped
-    
-  mqtt:
-    image: eclipse-mosquitto:2.0
-    container_name: mqtt
-    restart: always
-    ports:
-      - "1883:1883"
-      - "9001:9001"
+    environment:
+      SPARK_HOME: /opt/spark
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      MONGODB_URI: mongodb://mongodb:27017/
     volumes:
-      - ./mqtt_server/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - spark-checkpoint:/opt/spark/work-dir
 
   grafana:
-    image: grafana/grafana:9.5.1              # <-- LÙI VỀ PHIÊN BẢN 9
+    image: grafana/grafana:9.5.1
     container_name: grafana
-    restart: always
+    restart: unless-stopped
     ports:
       - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin123
-      - GF_INSTALL_PLUGINS=mongodb-community-datasource # <-- GIỮ NGUYÊN TÊN PLUGIN NÀY
+      - GF_INSTALL_PLUGINS=grafana-mongodb-datasource
     volumes:
       - grafana-storage:/var/lib/grafana
     depends_on:
       - mongodb
 
 volumes:
+  mongodb-data:
+    driver: local
+  mysql-data:
+    driver: local
+  mosquitto-data:
+    driver: local
+  mosquitto-logs:
+    driver: local
   grafana-storage:
+    driver: local
+  spark-checkpoint:
+    driver: local

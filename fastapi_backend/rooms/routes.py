@@ -14,7 +14,7 @@ from devices.models import Device, DeviceField
 from .schemas import RoomCreate, RoomUpdate, RoomOut
 
 # MQTT config
-MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
+MQTT_BROKER = os.getenv("MQTT_BROKER", "mqtt")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 
 router = APIRouter()
@@ -36,7 +36,7 @@ def mqtt_connect():
     thread = threading.Thread(target=mqtt_client.loop_forever, daemon=True)
     thread.start()
 
-# Gọi kết nối MQTT khi load file
+# # Gọi kết nối MQTT khi load file
 mqtt_connect()
 
 def mqtt_subscribe(topic: str):

@@ -90,7 +90,8 @@ iot/devices/{device_id}/data
 ## 🔧 Cấu trúc cơ sở dữ liệu
 
 ### MySQL: CSDL `iot_data`
-
+$env:PYSPARK_PYTHON="D:\anacoda\python.exe"; spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.mongodb.spark:mongo-spark-connector_2.12:10.3.0 .\process_events.py
+$env:PYSPARK_PYTHON="D:\anacoda\python.exe"; spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.mongodb.spark:mongo-spark-connector_2.12:11.0.0 .\process_events.py
 ```sql
 CREATE TABLE events (
   id INT AUTO_INCREMENT PRIMARY KEY,

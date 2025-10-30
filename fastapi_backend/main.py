@@ -50,15 +50,18 @@ app = FastAPI(
     lifespan=lifespan 
 )
 
-# CORS
+# Cấu hình CORS đã sửa
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[],
-    allow_origin_regex=".*",
+    allow_origins=[
+        "https://marguerite-bibliopolical-irradiatingly.ngrok-free.dev",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 
 # Mount routes
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
@@ -100,4 +103,5 @@ if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     reload_flag = os.getenv("RELOAD", "false").lower() == "true"
+    
     uvicorn.run("main:app", host=host, port=port, reload=reload_flag)
